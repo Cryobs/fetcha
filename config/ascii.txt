@@ -1,13 +1,13 @@
-                   -`
+                   $1-`
                   .o+`
                  `ooo/
                 `+oooo:
                `+oooooo:
                -+oooooo+:
              `/:-:++oooo+:
-            `/++++/+++++++:
+            $3`/++++/+++++++:
            `/++++++++++++++:
-          `/+++ooooooooooooo/`
+          `/+++$1ooooooooooooo/`
          ./ooosssso++osssssso+`
         .oossssso-````/ossssss+`
        -osssssso.      :ssssssso.
