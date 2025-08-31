@@ -81,6 +81,28 @@ typedef struct
 
 } config;
 
+/*
+ * color to ansi code
+ * function that takes color [0-15] and convert it to:
+ * - [0-7]  - [30-37] default colors
+ * - [8-15] - [90-97] light colors
+ * and writes to out buffer
+ */
+void
+c_to_ansi(const char *color, char *out, size_t out_size)
+{
+
+  int n = atoi(color);
+  int ansi_code = 39;
+
+  if (n >= 0 && n <= 7) {
+    ansi_code = n + 30;
+  } else if (n > 7 && n <= 15) {
+    ansi_code = n + 90 - 8;
+  }
+
+  snprintf(out, out_size, "%d", ansi_code);
+}
 
 /* cfg init */
 config cfg;
@@ -89,18 +111,14 @@ void
 config_init()
 {
   cfg.ascii_dir = strdup("config/ascii.txt"); 
-  cfg.colors[0] = strdup("0");
-  cfg.colors[1] = strdup("1");
-  cfg.colors[2] = strdup("2");
-  cfg.colors[3] = strdup("3");
-  cfg.colors[4] = strdup("4");
-  cfg.colors[5] = strdup("5");
-  cfg.colors[6] = strdup("6");
-  cfg.colors[7] = strdup("7");
-  cfg.colors[8] = strdup("8");
-  cfg.colors[9] = strdup("9");
-  
+  char buf[8];
+  char *colors[COLORS] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
+  for (int i = 0; i < COLORS; i++) {
+    c_to_ansi(colors[i], buf, sizeof(buf));
+    cfg.colors[i] = strdup(buf);
+  }
+  
   cfg.ascii_pad = 2;
   cfg.info_align = 1;
 }
@@ -130,23 +148,30 @@ free_config(config *cfg)
   cfg->ascii_dir = NULL;
   if (cfg->colors) {
     for (int i = 0; i < COLORS; i++) {
-      free(cfg->colors[i]);  // только если malloc/strdup!
+      free(cfg->colors[i]);  
     }
   }
-  free(cfg);
 }
 
+/*
+ * function that prints information by template
+ * label: value
+ * label with color 1
+ */
 void 
 print_info(info inf, int maxlen)
 {
   if (cfg.info_align == 1) {
-    printf("\x1b[1;3%sm%-*s\x1b[0m: \x1b[1m%s\x1b[0m", cfg.colors[1], maxlen, inf.label, inf.value); 
+    printf("\x1b[%sm%-*s\x1b[0m: %s", cfg.colors[1], maxlen, inf.label, inf.value); 
     return;
   }
-  printf("\x1b[1;3%sm%s\x1b[0m: %s", cfg.colors[1], inf.label, inf.value); 
+  printf("\x1b[%sm%s\x1b[0m: %s", cfg.colors[1], inf.label, inf.value); 
 }
 
 
+/* 
+ * function that returns dynamic sebstring from *start to *end
+ */
 char *
 substring(const char *start, const char *end)
 {
@@ -163,6 +188,10 @@ substring(const char *start, const char *end)
 }
 
 
+/* function that:
+ * - deletes all spaces from start to first char
+ * - deletes all spaces from end to first char
+ */
 char *
 trim(char *str) 
 {
@@ -184,6 +213,12 @@ trim(char *str)
     return str;
 }
 
+
+/*
+ * simple config processor, that process configs like that:
+ * - key = value // comments 
+ * checks for keywords from cfgmap, and changing values in cfg
+ */
 int 
 load_config(const char *filename, config *cfg)
 {
@@ -220,6 +255,12 @@ load_config(const char *filename, config *cfg)
         if (strcmp(key, cfgmap[i].key) == 0) {
           if (cfgmap[i].type == CFG_STRING) {
             free(*(char **)cfgmap[i].ptr);
+            if (strncmp(key, "color", 5) == 0) {
+                char buf[8];
+                c_to_ansi(value, buf, sizeof(buf));
+                *(char **)cfgmap[i].ptr = strdup(buf);
+                continue;
+            }
             *(char **)cfgmap[i].ptr = strdup(value);
           } else if (cfgmap[i].type == CFG_INT) {
             *(int *)cfgmap[i].ptr = atoi(value);
@@ -233,7 +274,15 @@ load_config(const char *filename, config *cfg)
   return 0;
 }
 
-
+/*
+ * function that reads file to buf dynamicly
+ * if returns < 0 here errors:
+ * - (-1) file doesn't exist
+ * - (-2) can't get size of the file
+ * - (-3) problem with allocating memory for file content
+ * - (-4) problem with reading file content
+ * "adds '\0' to and"
+ */
 int
 read_file(const char *file_path, char **buf)
 {
@@ -275,6 +324,12 @@ read_file(const char *file_path, char **buf)
   return 0;
 }
 
+/*
+ * function that fill ascii.width and ascii.height fields,
+ * by counting the most long line (width),
+ * and counting lines (height);
+ * "writes to res"
+ */
 void
 get_ascii_size(struct ascii *res)
 {
@@ -314,29 +369,42 @@ get_ascii_size(struct ascii *res)
 }
 
 
+/*
+ * fill all struct ascii fields and return final structure
+ */
 struct ascii
 get_ascii()
 {
-  struct ascii res;
-  read_file(cfg.ascii_dir, &res.art);
+  struct ascii res = {0};
+  if(read_file(cfg.ascii_dir, &res.art) != 0) 
+    res.art = strdup("");
 
   get_ascii_size(&res);
   return res;
 }
 
+/*
+ * function that print:
+ * - ascii art with colors from config, with processing like:
+ *     $1 - cfg.colors[1]
+ * - information with print_info(), takes size of infos (size_t infos_size)
+ *
+ * if return < 0:
+ * - 
+ */
 int
-print_fetch(struct ascii *res, info *infos, size_t n)
+print_fetch(struct ascii *res, info *infos, size_t infos_size)
 {
   char *p = res->art;
   int   curw = 0;
   char  cur_color = '7';
   int   cur_info = 0;
-  while(*p || cur_info < n) {
+  while(*p || cur_info < infos_size) {
     if (*p) {
       /*  check color  */
       if(*p == '$' && isdigit(*(p + 1))){
         cur_color = *++p;
-        printf("\x1b[3%sm",  cfg.colors[cur_color - '0']);
+        printf("\x1b[%sm",  cfg.colors[cur_color - '0']);
         p++;
         continue;
       }
@@ -351,18 +419,20 @@ print_fetch(struct ascii *res, info *infos, size_t n)
     }
 
     /* add padding */
-    while(curw != res->width + cfg.ascii_pad) {
-      putchar(' ');
-      curw++;
+    if (res->width > 0) {
+      while(curw != res->width + cfg.ascii_pad) {
+        putchar(' ');
+        curw++;
+      }
     }
 
     /*  print info */
     
     printf("\x1b[0m"); /*  reset color */
 
-    if (cur_info < n) {
+    if (cur_info < infos_size) {
       int maxlen = strlen(infos[0].label);
-      for (int i = 1; i < n; i++) {
+      for (int i = 1; i < infos_size; i++) {
         if (strlen(infos[i].label) > maxlen) maxlen = strlen(infos[i].label);
       }
       print_info(infos[cur_info++], maxlen); 
@@ -370,7 +440,7 @@ print_fetch(struct ascii *res, info *infos, size_t n)
 
     curw = 0;
     printf("\n");
-    printf("\x1b[3%sm",  cfg.colors[cur_color - '0']);
+    printf("\x1b[%sm",  cfg.colors[cur_color - '0']);
   }
   printf("\x1b[0m"); /*  reset color */
   return 0;
@@ -421,8 +491,8 @@ main(int argc, char *argv[])
   print_fetch(&art, infos, sizeof(infos) / sizeof(infos[0]));
 
   
-
-  //free_ascii(&art);
+  free_config(&cfg);
+  free_ascii(&art);
   return 0;
 
 
