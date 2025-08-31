@@ -1,4 +1,4 @@
-#include <asm-generic/errno-base.h>
+#include <errno.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -6,6 +6,7 @@
 #include <ctype.h>
 
 
+#define  COLORS 10
 
 
 
@@ -50,50 +51,48 @@ typedef struct
   int   ascii_pad; /* ascii/info padding in spaces */ 
   int   info_align; /* info aligment 1 yes, 0 no */
 
-  char *color0;
-  char *color1;
-  char *color2;
-  char *color3;
-  char *color4;
-  char *color5;
-  char *color6;
-  char *color7;
-  char *color8;
-  char *color9;
+  char *colors[COLORS];
 
 } config;
 
+
 /* cfg init */
-config cfg = {
-  .ascii_dir = NULL,
-  .ascii_pad = 2,
-  .info_align = 1,
-  .color0 = "0",
-  .color1 = "1",
-  .color2 = "2",
-  .color3 = "3",
-  .color4 = "4",
-  .color5 = "5",
-  .color6 = "6",
-  .color7 = "7",
-  .color8 = "8",
-  .color9 = "9",
-};
+config cfg;
+
+void
+config_init()
+{
+  cfg.ascii_dir = strdup("config/ascii.txt"); 
+  cfg.colors[0] = strdup("0");
+  cfg.colors[1] = strdup("1");
+  cfg.colors[2] = strdup("2");
+  cfg.colors[3] = strdup("3");
+  cfg.colors[4] = strdup("4");
+  cfg.colors[5] = strdup("5");
+  cfg.colors[6] = strdup("6");
+  cfg.colors[7] = strdup("7");
+  cfg.colors[8] = strdup("8");
+  cfg.colors[9] = strdup("9");
+  
+
+  cfg.ascii_pad = 2;
+  cfg.info_align = 1;
+}
 
 cfg_entry cfgmap[] = {
   { "ascii_dir",  CFG_STRING,&cfg.ascii_dir },
   { "ascii_pad",  CFG_INT,   &cfg.ascii_pad },
   { "info_align", CFG_INT,   &cfg.info_align},
-  { "color0",     CFG_STRING,&cfg.color0 },
-  { "color1",     CFG_STRING,&cfg.color1 },
-  { "color2",     CFG_STRING,&cfg.color2 },
-  { "color3",     CFG_STRING,&cfg.color3 },
-  { "color4",     CFG_STRING,&cfg.color4 },
-  { "color5",     CFG_STRING,&cfg.color5 },
-  { "color6",     CFG_STRING,&cfg.color6 },
-  { "color7",     CFG_STRING,&cfg.color7 },
-  { "color8",     CFG_STRING,&cfg.color8 },
-  { "color9",     CFG_STRING,&cfg.color9 },
+  { "color0",     CFG_STRING,&cfg.colors[0] },
+  { "color1",     CFG_STRING,&cfg.colors[1] },
+  { "color2",     CFG_STRING,&cfg.colors[2] },
+  { "color3",     CFG_STRING,&cfg.colors[3] },
+  { "color4",     CFG_STRING,&cfg.colors[4] },
+  { "color5",     CFG_STRING,&cfg.colors[5] },
+  { "color6",     CFG_STRING,&cfg.colors[6] },
+  { "color7",     CFG_STRING,&cfg.colors[7] },
+  { "color8",     CFG_STRING,&cfg.colors[8] },
+  { "color9",     CFG_STRING,&cfg.colors[9] },
 };
 int cfgmap_len = sizeof(cfgmap) / sizeof(cfgmap[0]);
 
@@ -103,16 +102,22 @@ free_config(config *cfg)
   if (!cfg) return;
   free(cfg->ascii_dir);
   cfg->ascii_dir = NULL;
+  if (cfg->colors) {
+    for (int i = 0; i < COLORS; i++) {
+      free(cfg->colors[i]);  // только если malloc/strdup!
+    }
+  }
+  free(cfg);
 }
 
 void 
 print_info(info inf, int maxlen)
 {
   if (cfg.info_align == 1) {
-    printf("\x1b[1;3%sm%-*s: %s\x1b[0m", cfg.color1, maxlen, inf.label, inf.value); 
+    printf("\x1b[1;3%sm%-*s\x1b[0m: \x1b[1m%s\x1b[0m", cfg.colors[1], maxlen, inf.label, inf.value); 
     return;
   }
-  printf("%s: %s", inf.label, inf.value); 
+  printf("\x1b[1;3%sm%s\x1b[0m: %s", cfg.colors[1], inf.label, inf.value); 
 }
 
 
@@ -305,7 +310,7 @@ print_fetch(struct ascii *res, info *infos, size_t n)
       /*  check color  */
       if(*p == '$' && isdigit(*(p + 1))){
         cur_color = *++p;
-        printf("\x1b[3%cm",  cur_color);
+        printf("\x1b[3%sm",  cfg.colors[cur_color - '0']);
         p++;
         continue;
       }
@@ -339,7 +344,7 @@ print_fetch(struct ascii *res, info *infos, size_t n)
 
     curw = 0;
     printf("\n");
-    printf("\x1b[3%cm",  cur_color);
+    printf("\x1b[3%sm",  cfg.colors[cur_color - '0']);
   }
   printf("\x1b[0m"); /*  reset color */
   return 0;
@@ -348,8 +353,11 @@ print_fetch(struct ascii *res, info *infos, size_t n)
 int
 main(int argc, char *argv[])
 {
-  if(load_config("config/config.conf", &cfg) == 0) {
-    printf("ASCII_DIR: %s\n", cfg.ascii_dir);
+  config_init();
+
+  if(load_config("config/config.conf", &cfg) != 0) {
+    fprintf(stderr, "ASCII_DIR: %s not exist\n", cfg.ascii_dir);
+    exit(EXIT_FAILURE);
   }
 
   struct ascii art = get_ascii();
