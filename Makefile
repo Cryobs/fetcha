@@ -1,4 +1,4 @@
-# Makefile for fetch
+# Makefile for fetcha
 
 CC = gcc
 CFLAGS = -Wall -Wextra -O2
