@@ -286,7 +286,10 @@ load_config(const char *filename, config *cfg)
 int
 read_file(const char *file_path, char **buf)
 {
-  if (!file_path || !buf) return -EINVAL; *buf = NULL;
+  if (!file_path || !buf) {
+    *buf = NULL;
+    return -EINVAL;
+  }
   
   FILE* fp = fopen(file_path, "r") ;
   if (!fp) {
@@ -399,7 +402,7 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
   int   curw = 0;
   char  cur_color = '7';
   int   cur_info = 0;
-  while(*p || cur_info < infos_size) {
+  while(*p || (size_t)cur_info < infos_size) {
     if (*p) {
       /*  check color  */
       if(*p == '$' && isdigit(*(p + 1))){
@@ -430,10 +433,11 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
     
     printf("\x1b[0m"); /*  reset color */
 
-    if (cur_info < infos_size) {
+    if ((size_t)cur_info < infos_size) {
       int maxlen = strlen(infos[0].label);
-      for (int i = 1; i < infos_size; i++) {
-        if (strlen(infos[i].label) > maxlen) maxlen = strlen(infos[i].label);
+      for (int i = 1; (size_t)i < infos_size; i++) {
+        if (strlen(infos[i].label) > (size_t)maxlen) 
+          maxlen = strlen(infos[i].label);
       }
       print_info(infos[cur_info++], maxlen); 
     }
