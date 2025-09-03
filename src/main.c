@@ -30,7 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-
+#include <unistd.h>
+#include <pwd.h>
 
 #define  COLORS 10
 
@@ -50,6 +51,15 @@ free_ascii(struct ascii *s)
   free(s->art);
   s->art = NULL;
 }
+
+/* header */
+typedef struct 
+{
+  char *name;     
+  char *sep;      /* separator name[]hostname */
+  char hostname[256];
+
+} header;
 
 /* info */
 typedef struct 
@@ -78,6 +88,9 @@ typedef struct
   int   info_align; /* info aligment 1 yes, 0 no */
 
   char *colors[COLORS];
+
+  char *header_sep;
+  char *boundary_char;
 
 } config;
 
@@ -121,6 +134,8 @@ config_init()
   
   cfg.ascii_pad = 2;
   cfg.info_align = 1;
+  cfg.header_sep = strdup("@");
+  cfg.boundary_char = strdup("-");
 }
 
 cfg_entry cfgmap[] = {
@@ -137,6 +152,9 @@ cfg_entry cfgmap[] = {
   { "color7",     CFG_STRING,&cfg.colors[7] },
   { "color8",     CFG_STRING,&cfg.colors[8] },
   { "color9",     CFG_STRING,&cfg.colors[9] },
+  { "header_sep", CFG_STRING,&cfg.header_sep },
+  { "boundary_char", CFG_STRING,&cfg.boundary_char },
+
 };
 int cfgmap_len = sizeof(cfgmap) / sizeof(cfgmap[0]);
 
@@ -151,6 +169,8 @@ free_config(config *cfg)
       free(cfg->colors[i]);  
     }
   }
+  free(cfg->header_sep);
+  free(cfg->boundary_char);
 }
 
 /*
@@ -162,11 +182,16 @@ void
 print_info(info inf, int maxlen)
 {
   if (cfg.info_align == 1) {
-    printf("\x1b[%sm%-*s\x1b[0m: %s", cfg.colors[1], maxlen, inf.label, inf.value); 
+    printf("\x1b[%sm%-*s\x1b[0m: %s", 
+        cfg.colors[1], maxlen, inf.label, inf.value); 
     return;
   }
   printf("\x1b[%sm%s\x1b[0m: %s", cfg.colors[1], inf.label, inf.value); 
 }
+
+
+
+
 
 
 /* 
@@ -272,6 +297,52 @@ load_config(const char *filename, config *cfg)
   
   fclose(fd);
   return 0;
+}
+
+
+
+/*
+ * function that prints header
+ * returns:
+ *  > 0: header length
+ *  < 0: error
+ */
+int
+print_header()
+{
+  header hdr;
+  hdr.name = getenv("USER");
+  if (gethostname(hdr.hostname, sizeof(hdr.hostname)) != 0) {
+    perror("gethostname error");
+    return -1; 
+  }
+  hdr.sep = cfg.header_sep;
+
+  printf("\x1b[0m"); /* reset color */
+  printf("\x1b[%sm%s",cfg.colors[1], hdr.name);
+  printf("\x1b[%sm%s", cfg.colors[5], hdr.sep);
+  printf("\x1b[%sm%s",cfg.colors[2], hdr.hostname);
+
+
+  return strlen(hdr.name) + strlen(hdr.sep) + strlen(hdr.hostname);
+}
+
+/*
+ * function that prints boundary
+ * returns:
+ *  boundary  length
+ */
+int
+print_boundary(int len)
+{
+  printf("\x1b[%sm", cfg.colors[5]);
+  for(int i = 0; i < len; i++) 
+  {
+    printf("%s", cfg.boundary_char);
+  }
+  printf("\x1b[0m"); /* reset color */
+
+  return len * strlen(cfg.boundary_char);
 }
 
 /*
@@ -402,6 +473,7 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
   int   curw = 0;
   char  cur_color = '7';
   int   cur_info = 0;
+  int   header_len = 0;
   while(*p || (size_t)cur_info < infos_size) {
     if (*p) {
       /*  check color  */
@@ -429,6 +501,21 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
       }
     }
 
+    /* print header */
+    if (header_len == 0){
+      header_len = print_header();
+      if (header_len < 0) {
+        fprintf(stderr, "Header Error: %d", header_len);
+        exit(EXIT_FAILURE);
+      } 
+      goto print_fetch_end;
+    } else if (header_len > 0) {
+      print_boundary(header_len);  
+      header_len = -1;
+      goto print_fetch_end;
+    }
+
+
     /*  print info */
     
     printf("\x1b[0m"); /*  reset color */
@@ -442,6 +529,7 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
       print_info(infos[cur_info++], maxlen); 
     }
 
+    print_fetch_end:
     curw = 0;
     printf("\n");
     printf("\x1b[%sm",  cfg.colors[cur_color - '0']);
