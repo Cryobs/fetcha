@@ -32,6 +32,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <sys/utsname.h>
 
 #define  COLORS 10
 
@@ -299,7 +300,44 @@ load_config(const char *filename, config *cfg)
   return 0;
 }
 
+int
+get_os(char **out)
+{
+  FILE *f = fopen("/etc/os-release", "r");
+  if (!f) f = fopen("/usr/lib/os-release", "r");
+  char osname[128] = "Unknown";
+  if (f) {
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+      if (strncmp(line, "PRETTY_NAME=", 12) == 0) {
+        char *val = line + 12;
+        val[strcspn(val, "\n")] = 0;
+        if (*val == '"' && val[strlen(val)-1] == '"') {
+          val[strlen(val)-1] = 0;
+          val++;
+        }
+        strncpy(osname, val, sizeof(osname)-1);
+        break;
+      }
+    }
+    fclose(f);
+  }
 
+  /* uname for arch */
+  struct utsname buf;
+  if (uname(&buf) != 0) {
+    return -1;
+  }
+
+
+  size_t len = strlen(osname) + strlen(buf.machine) + 2;
+  *out = malloc(len);
+  if (!*out) return -1;
+
+  snprintf(*out, len, "%s %s", osname, buf.machine);
+
+  return 0;
+}
 
 /*
  * function that prints header
@@ -316,6 +354,7 @@ print_header()
     perror("gethostname error");
     return -1; 
   }
+  
   hdr.sep = cfg.header_sep;
 
   printf("\x1b[0m"); /* reset color */
@@ -549,9 +588,11 @@ main(int argc, char *argv[])
   }
 
   struct ascii art = get_ascii();
+  char *OS;;
+  get_os(&OS);
   //puts(art.art); 
   info infos[] = {
-    {"OS",  "Arch Linux"},
+    {"OS",  OS},
     {"Kernel", "6.10.5-arch1"},
     {"Shell", "zsh"},
     {"Shell", "zsh"},
@@ -582,7 +623,7 @@ main(int argc, char *argv[])
 
   print_fetch(&art, infos, sizeof(infos) / sizeof(infos[0]));
 
-  
+  free(OS); 
   free_config(&cfg);
   free_ascii(&art);
   return 0;
