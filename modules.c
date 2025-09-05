@@ -106,3 +106,21 @@ get_host(void)
 
   return out;
 }
+
+
+/*
+ * function that returns malloc string "Kernel" or NULL
+ */
+char *
+get_kernel(void)
+{
+  struct utsname buf;
+  if (uname(&buf) != 0) {
+    return NULL;
+  }
+  return strdup(buf.release);
+}
+
+
+
+

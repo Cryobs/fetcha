@@ -38,8 +38,9 @@ static const char *header_sep    = "@";
  * Label, func
  */
 static info_item config_items[] = {
-  { "OS", get_os },
-  { "HOST", get_host },
+  { "OS",     get_os },
+  { "HOST",   get_host },
+  { "Kernel", get_kernel },
 
 };
 

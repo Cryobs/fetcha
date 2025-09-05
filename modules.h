@@ -11,5 +11,6 @@ typedef struct {
 
 char *get_os(void);
 char *get_host(void);
+char *get_kernel(void);
 
 #endif
