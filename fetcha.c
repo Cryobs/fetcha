@@ -34,6 +34,9 @@
 #include <pwd.h>
 #include <sys/utsname.h>
 
+#include "modules.h"
+#include "config.h"
+
 #define  COLORS 10
 
 
@@ -62,39 +65,6 @@ typedef struct
 
 } header;
 
-/* info */
-typedef struct 
-{
-  const char *label;
-  const char *value;
-} info;
-
-
-
-/* config */
-typedef enum { CFG_STRING, CFG_INT } cfg_type;
-
-typedef struct 
-{
-  const char *key;
-  cfg_type type;
-  void *ptr;
-} cfg_entry;
-  
-
-typedef struct 
-{
-  char *ascii_dir; /* ascii directory */
-  int   ascii_pad; /* ascii/info padding in spaces */ 
-  int   info_align; /* info aligment 1 yes, 0 no */
-
-  char *colors[COLORS];
-
-  char *header_sep;
-  char *boundary_char;
-
-} config;
-
 /*
  * color to ansi code
  * function that takes color [0-15] and convert it to:
@@ -117,77 +87,24 @@ c_to_ansi(const char *color, char *out, size_t out_size)
 
   snprintf(out, out_size, "%d", ansi_code);
 }
-
-/* cfg init */
-config cfg;
-
-void
-config_init()
-{
-  cfg.ascii_dir = strdup("config/ascii.txt"); 
-  char buf[8];
-  char *colors[COLORS] = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
-
-  for (int i = 0; i < COLORS; i++) {
-    c_to_ansi(colors[i], buf, sizeof(buf));
-    cfg.colors[i] = strdup(buf);
-  }
-  
-  cfg.ascii_pad = 2;
-  cfg.info_align = 1;
-  cfg.header_sep = strdup("@");
-  cfg.boundary_char = strdup("-");
-}
-
-cfg_entry cfgmap[] = {
-  { "ascii_dir",  CFG_STRING,&cfg.ascii_dir },
-  { "ascii_pad",  CFG_INT,   &cfg.ascii_pad },
-  { "info_align", CFG_INT,   &cfg.info_align},
-  { "color0",     CFG_STRING,&cfg.colors[0] },
-  { "color1",     CFG_STRING,&cfg.colors[1] },
-  { "color2",     CFG_STRING,&cfg.colors[2] },
-  { "color3",     CFG_STRING,&cfg.colors[3] },
-  { "color4",     CFG_STRING,&cfg.colors[4] },
-  { "color5",     CFG_STRING,&cfg.colors[5] },
-  { "color6",     CFG_STRING,&cfg.colors[6] },
-  { "color7",     CFG_STRING,&cfg.colors[7] },
-  { "color8",     CFG_STRING,&cfg.colors[8] },
-  { "color9",     CFG_STRING,&cfg.colors[9] },
-  { "header_sep", CFG_STRING,&cfg.header_sep },
-  { "boundary_char", CFG_STRING,&cfg.boundary_char },
-
-};
-int cfgmap_len = sizeof(cfgmap) / sizeof(cfgmap[0]);
-
-void
-free_config(config *cfg)
-{
-  if (!cfg) return;
-  free(cfg->ascii_dir);
-  cfg->ascii_dir = NULL;
-  if (cfg->colors) {
-    for (int i = 0; i < COLORS; i++) {
-      free(cfg->colors[i]);  
-    }
-  }
-  free(cfg->header_sep);
-  free(cfg->boundary_char);
-}
-
 /*
  * function that prints information by template
  * label: value
  * label with color 1
  */
 void 
-print_info(info inf, int maxlen)
+print_info(info_item *item, int maxlen)
 {
-  if (cfg.info_align == 1) {
-    printf("\x1b[%sm%-*s\x1b[0m: %s", 
-        cfg.colors[1], maxlen, inf.label, inf.value); 
+  char *value;
+  value = item->func();
+  if (!value) value = "(null)";
+  if (info_align == 1) {
+    printf("\x1b[%dm%-*s\x1b[0m: %s", 
+        colors[1], maxlen, item->label, value); 
     return;
   }
-  printf("\x1b[%sm%s\x1b[0m: %s", cfg.colors[1], inf.label, inf.value); 
+  printf("\x1b[%dm%s\x1b[0m: %s", colors[1], item->label, value); 
+  free(value);
 }
 
 
@@ -240,104 +157,6 @@ trim(char *str)
 }
 
 
-/*
- * simple config processor, that process configs like that:
- * - key = value // comments 
- * checks for keywords from cfgmap, and changing values in cfg
- */
-int 
-load_config(const char *filename, config *cfg)
-{
-  FILE *fd = fopen(filename, "r");
-  if (!fd) {
-    perror("Config open error");
-    return -1;
-  }
-
-  char line[128];
-  while (fgets(line, sizeof(line), fd)) {
-      /* skip comments and blank lines */
-      if ((line[0] == '/' && line[1] == '/') || line[0] == '\n') {
-        continue;
-      }
-
-      char *cmt = strstr(line, "//");
-      if (cmt) 
-        *cmt = '\0';
-
-
-      char *eq = strchr(line, '=');
-      if (!eq) continue;
-
-      *eq = '\0';  /* split line */
-      char *key = trim(line);
-      char *value = trim(eq + 1);
-
-      /* remove \n */
-      value[strcspn(value, "\r\n")] = 0;
-
-      /* check for keywords */
-      for (int i = 0; i < cfgmap_len; i++) {
-        if (strcmp(key, cfgmap[i].key) == 0) {
-          if (cfgmap[i].type == CFG_STRING) {
-            free(*(char **)cfgmap[i].ptr);
-            if (strncmp(key, "color", 5) == 0) {
-                char buf[8];
-                c_to_ansi(value, buf, sizeof(buf));
-                *(char **)cfgmap[i].ptr = strdup(buf);
-                continue;
-            }
-            *(char **)cfgmap[i].ptr = strdup(value);
-          } else if (cfgmap[i].type == CFG_INT) {
-            *(int *)cfgmap[i].ptr = atoi(value);
-          }
-        }
-      }
-          
-  }
-  
-  fclose(fd);
-  return 0;
-}
-
-int
-get_os(char **out)
-{
-  FILE *f = fopen("/etc/os-release", "r");
-  if (!f) f = fopen("/usr/lib/os-release", "r");
-  char osname[128] = "Unknown";
-  if (f) {
-    char line[256];
-    while (fgets(line, sizeof(line), f)) {
-      if (strncmp(line, "PRETTY_NAME=", 12) == 0) {
-        char *val = line + 12;
-        val[strcspn(val, "\n")] = 0;
-        if (*val == '"' && val[strlen(val)-1] == '"') {
-          val[strlen(val)-1] = 0;
-          val++;
-        }
-        strncpy(osname, val, sizeof(osname)-1);
-        break;
-      }
-    }
-    fclose(f);
-  }
-
-  /* uname for arch */
-  struct utsname buf;
-  if (uname(&buf) != 0) {
-    return -1;
-  }
-
-
-  size_t len = strlen(osname) + strlen(buf.machine) + 2;
-  *out = malloc(len);
-  if (!*out) return -1;
-
-  snprintf(*out, len, "%s %s", osname, buf.machine);
-
-  return 0;
-}
 
 /*
  * function that prints header
@@ -348,22 +167,20 @@ get_os(char **out)
 int
 print_header()
 {
-  header hdr;
-  hdr.name = getenv("USER");
-  if (gethostname(hdr.hostname, sizeof(hdr.hostname)) != 0) {
+  char *name = getenv("USER");
+  char hostname[256];
+  if (gethostname(hostname, sizeof(hostname)) != 0) {
     perror("gethostname error");
     return -1; 
-  }
-  
-  hdr.sep = cfg.header_sep;
+  } 
 
   printf("\x1b[0m"); /* reset color */
-  printf("\x1b[%sm%s",cfg.colors[1], hdr.name);
-  printf("\x1b[%sm%s", cfg.colors[5], hdr.sep);
-  printf("\x1b[%sm%s",cfg.colors[2], hdr.hostname);
+  printf("\x1b[%dm%s", colors[1], name);
+  printf("\x1b[%dm%s", colors[5], header_sep);
+  printf("\x1b[%dm%s", colors[2], hostname);
 
 
-  return strlen(hdr.name) + strlen(hdr.sep) + strlen(hdr.hostname);
+  return strlen(name) + strlen(header_sep) + strlen(hostname);
 }
 
 /*
@@ -374,14 +191,14 @@ print_header()
 int
 print_boundary(int len)
 {
-  printf("\x1b[%sm", cfg.colors[5]);
+  printf("\x1b[%dm", colors[5]);
   for(int i = 0; i < len; i++) 
   {
-    printf("%s", cfg.boundary_char);
+    printf("%s", boundary_char);
   }
   printf("\x1b[0m"); /* reset color */
 
-  return len * strlen(cfg.boundary_char);
+  return len * strlen(boundary_char);
 }
 
 /*
@@ -489,7 +306,7 @@ struct ascii
 get_ascii()
 {
   struct ascii res = {0};
-  if(read_file(cfg.ascii_dir, &res.art) != 0) 
+  if(read_file(ascii_dir, &res.art) != 0) 
     res.art = strdup("");
 
   get_ascii_size(&res);
@@ -506,19 +323,19 @@ get_ascii()
  * - 
  */
 int
-print_fetch(struct ascii *res, info *infos, size_t infos_size)
+print_fetch(struct ascii *res)
 {
   char *p = res->art;
   int   curw = 0;
   char  cur_color = '7';
   int   cur_info = 0;
   int   header_len = 0;
-  while(*p || (size_t)cur_info < infos_size) {
+  while(*p || (size_t)cur_info < config_items_len) {
     if (*p) {
       /*  check color  */
       if(*p == '$' && isdigit(*(p + 1))){
         cur_color = *++p;
-        printf("\x1b[%sm",  cfg.colors[cur_color - '0']);
+        printf("\x1b[%dm",  colors[cur_color - '0']);
         p++;
         continue;
       }
@@ -534,7 +351,7 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
 
     /* add padding */
     if (res->width > 0) {
-      while(curw != res->width + cfg.ascii_pad) {
+      while(curw != res->width + ascii_pad) {
         putchar(' ');
         curw++;
       }
@@ -559,19 +376,20 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
     
     printf("\x1b[0m"); /*  reset color */
 
-    if ((size_t)cur_info < infos_size) {
-      int maxlen = strlen(infos[0].label);
-      for (int i = 1; (size_t)i < infos_size; i++) {
-        if (strlen(infos[i].label) > (size_t)maxlen) 
-          maxlen = strlen(infos[i].label);
+    if ((size_t)cur_info < config_items_len) {
+      int maxlen = strlen(config_items[0].label);
+      for (int i = 1; (size_t)i < config_items_len; i++) {
+        if (strlen(config_items[i].label) > (size_t)maxlen) 
+          maxlen = strlen(config_items[i].label);
       }
-      print_info(infos[cur_info++], maxlen); 
+      print_info(&config_items[cur_info++], maxlen); 
     }
 
+    /* chill I know what I'm doing */
     print_fetch_end:
-    curw = 0;
-    printf("\n");
-    printf("\x1b[%sm",  cfg.colors[cur_color - '0']);
+      curw = 0;
+      printf("\n");
+      printf("\x1b[%dm",  colors[cur_color - '0']);
   }
   printf("\x1b[0m"); /*  reset color */
   return 0;
@@ -580,51 +398,10 @@ print_fetch(struct ascii *res, info *infos, size_t infos_size)
 int
 main(int argc, char *argv[])
 {
-  config_init();
-
-  if(load_config("config/config.conf", &cfg) != 0) {
-    fprintf(stderr, "ASCII_DIR: %s not exist\n", cfg.ascii_dir);
-    exit(EXIT_FAILURE);
-  }
-
   struct ascii art = get_ascii();
-  char *OS;;
-  get_os(&OS);
-  //puts(art.art); 
-  info infos[] = {
-    {"OS",  OS},
-    {"Kernel", "6.10.5-arch1"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-    {"Shell", "zsh"},
-  };
 
-  print_fetch(&art, infos, sizeof(infos) / sizeof(infos[0]));
+  print_fetch(&art);
 
-  free(OS); 
-  free_config(&cfg);
   free_ascii(&art);
   return 0;
 
