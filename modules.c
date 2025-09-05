@@ -122,5 +122,65 @@ get_kernel(void)
 }
 
 
+/*
+ * function that concatinates to buf:
+ * if val != 0
+ * if val == 1: concat singular
+ * if val > 1:  concat plural
+ */
+static void
+append_part(char *buf, size_t buf_size, int val, 
+            const char *singular, const char *plural, int *first)
+{
+  if (val <= 0) return;
+  char part[32];
+  snprintf(part, sizeof part,  "%d %s", val, (val == 1) ? singular : plural);
+  if (!*first) 
+    strncat(buf, ", ", buf_size - strlen(buf) - 1);
+  strncat(buf, part, buf_size - strlen(buf) - 1);
+  *first = 0;
+}
 
 
+/*
+ * function that formats time:
+ * - with plural/singular format
+ * - if days/hours/mins == 0: dont add
+ *
+ * return malloc string
+ */
+char *
+format_uptime(int days, int hours, int mins)
+{
+  char *buf = malloc(128);
+  if (!buf)
+    return NULL;
+  buf[0] = '\0';
+  int first = 1;
+  append_part(buf, 128, days, "day", "days", &first);
+  append_part(buf, 128, hours, "hour", "hours", &first);
+  append_part(buf, 128, mins, "min", "mins", &first);
+  if (first)
+    snprintf(buf, 128, "0 mins");
+  return buf;
+}
+
+
+char *
+get_uptime(void)
+{
+  FILE *f = fopen("/proc/uptime", "r");
+  if (!f) return NULL;
+  double seconds;
+  if (fscanf(f, "%lf", &seconds) != 1) {
+    fclose(f);
+    return NULL;
+  }
+  fclose(f);
+
+  int mins = (int)(seconds / 60) % 60;
+  int hours = (int)(seconds / 3600) % 24;
+  int days = (int) hours / 24;
+
+  return format_uptime(days, hours, mins); 
+}
