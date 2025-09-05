@@ -3,9 +3,10 @@
 
 
 static const char *ascii_dir     = "arts/ascii.txt"; 
-static const int ascii_pad       = 0; /* padding ascii/info */
+static const int ascii_pad       = 10; /* padding ascii/info */
 static const int info_align      = 1; /* align info by separator */
-
+static const int header_show     = 1; /* if 0 doot print header */
+static const char *info_sep      = ": ";
 /* 
  * colors ANSI 
  * NAME  : Normal Light
@@ -38,6 +39,7 @@ static const char *header_sep    = "@";
  */
 static info_item config_items[] = {
   { "OS", get_os },
+  { "HOST", get_host },
 
 };
 

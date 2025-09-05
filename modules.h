@@ -10,5 +10,6 @@ typedef struct {
 } info_item;
 
 char *get_os(void);
+char *get_host(void);
 
 #endif

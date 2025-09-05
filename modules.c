@@ -14,6 +14,25 @@ typedef struct
 } info_item;
 
 
+static char *
+read_file_trim(const char *path)
+{
+  FILE *f = fopen(path, "r");
+  if (!f) return NULL;
+  char buf[256];
+  if (!fgets(buf, sizeof buf, f)) {
+    fclose(f);
+    return NULL;
+  }
+  /* trim newline */
+  size_t n = strlen(buf);
+  while (n && (buf[n-1] == '\n' || buf[n-1] == '\r')) buf[--n] = '\0';
+  return strdup(buf);
+}
+
+/* 
+ * function that returns malloc string "OS Architecture" or NULL
+ */
 char *
 get_os(void)
 {
@@ -54,3 +73,36 @@ get_os(void)
 }
 
 
+/*
+ * function that returns malloc string "Product Version" or NULL
+ */
+char *
+get_host(void)
+{
+  char *product = read_file_trim("/sys/class/dmi/id/product_name");
+  char *version = read_file_trim("/sys/class/dmi/id/product_version");
+  if (!product && !version) {
+    free(product);
+    free(version);
+    return NULL;
+  }
+  if (!version) version = strdup("");
+  size_t len = strlen(product ? product : "") + 1 + strlen(version) + 1 + 8;
+  char *out = malloc(len);
+  if (!out) {
+    free(product);
+    free(version);
+    return NULL;
+  }
+  if(product && version[0]) 
+    snprintf(out, len, "%s %s", product, version);
+  else if (product)
+    snprintf(out, len, "%s", product);
+  else    
+    snprintf(out, len, "%s", version);
+
+  free(product);
+  free(version);
+
+  return out;
+}

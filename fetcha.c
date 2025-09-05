@@ -99,11 +99,11 @@ print_info(info_item *item, int maxlen)
   value = item->func();
   if (!value) value = "(null)";
   if (info_align == 1) {
-    printf("\x1b[%dm%-*s\x1b[0m: %s", 
-        colors[1], maxlen, item->label, value); 
+    printf("\x1b[%dm%-*s\x1b[0m%s%s", 
+        colors[1], maxlen, item->label, info_sep, value); 
     return;
   }
-  printf("\x1b[%dm%s\x1b[0m: %s", colors[1], item->label, value); 
+  printf("\x1b[%dm%s\x1b[0m%s%s", colors[1], item->label, info_sep, value); 
   free(value);
 }
 
@@ -358,7 +358,7 @@ print_fetch(struct ascii *res)
     }
 
     /* print header */
-    if (header_len == 0){
+    if (header_len == 0 && header_show != 0){
       header_len = print_header();
       if (header_len < 0) {
         fprintf(stderr, "Header Error: %d", header_len);
