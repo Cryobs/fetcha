@@ -306,8 +306,7 @@ struct ascii
 get_ascii()
 {
   struct ascii res = {0};
-  if(read_file(ascii_dir, &res.art) != 0) 
-    res.art = strdup("");
+  res.art = strdup(ascii_art);
 
   get_ascii_size(&res);
   return res;

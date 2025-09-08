@@ -46,3 +46,27 @@ static info_item config_items[] = {
 };
 
 const size_t config_items_len = sizeof config_items / sizeof config_items[0];
+
+
+static const char *ascii_art  =
+"                   $1-` \n"
+"                  .o+`\n"
+"                 `ooo/\n"
+"                `+oooo:\n"
+"               `+oooooo:\n"
+"               -+oooooo+:\n"
+"             `/:-:++oooo+:\n"
+"            $3`/++++/+++++++:\n"
+"           `/++++++++++++++:\n"
+"          `/+++$1ooooooooooooo/`\n"
+"         ./ooosssso++osssssso+`\n"
+"        .oossssso-````/ossssss+`\n"
+"       -osssssso.      :ssssssso.\n"
+"      :osssssss/        osssso+++. \n"
+"     /ossssssss/        +ssssooo/-  \n"
+"   `/ossssso+/:-        -:/+osssso+-   \n"
+"  `+sso+:-`                 `.-/+oso:     \n"
+" `++:.                           `-/+/   \n"
+" .`                                 `/  \n"
+;
+
