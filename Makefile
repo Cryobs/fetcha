@@ -8,7 +8,10 @@ OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
 DEPS = $(OBJS:.o=.d)
 BIN = bin/fetcha
 
-.PHONY: all clean
+PREFIX = /usr/local
+DESTDIR = 
+
+.PHONY: all clean install uninstall
 
 all: $(BIN)
 
@@ -25,3 +28,11 @@ $(OBJDIR)/%.o: %.c
 clean:
 	rm -rf $(OBJDIR) $(BIN)
 
+
+install: all
+	mkdir -p "$(DESTDIR)$(PREFIX)/bin"
+	cp -f "$(BIN)" "$(DESTDIR)$(PREFIX)/bin/fetcha"
+	chmod 755 "$(DESTDIR)$(PREFIX)/bin/fetcha"
+
+uninstall:
+	rm -f "$(DESTDIR)$(PREFIX)/bin/fetcha"

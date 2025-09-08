@@ -49,7 +49,7 @@ const size_t config_items_len = sizeof config_items / sizeof config_items[0];
 
 
 static const char *ascii_art  =
-"                   $1-` \n"
+"                   $2-` \n"
 "                  .o+`\n"
 "                 `ooo/\n"
 "                `+oooo:\n"
