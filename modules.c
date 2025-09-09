@@ -195,6 +195,7 @@ get_memory(void) {
   }
 
   long mem_total = 0;
+  char *mem_total_type = "KiB";
   long mem_free = 0;
   long buffers = 0;
   long cached = 0;
@@ -216,15 +217,19 @@ get_memory(void) {
   }
   fclose(f);
 
-  long mem_used = mem_total - mem_free - buffers - cached;
+  long mem_used = mem_total - mem_free - buffers - cached;\
+  char *mem_used_type = "KiB";
 
   if (mem_total >= 1024) {
     mem_total /= 1024;
+    mem_total_type = "MiB";
   }
   if (mem_used >= 1024) {
     mem_used /= 1024;
+    mem_used_type = "MiB";
   }
 
-  snprintf(buf, 64, "Memory: %ld%s / %ld%s", mem_used, mem_used >= 1024 ? "MiB" : "KiB", mem_total, mem_total >= 1024 ? "MiB" : "KiB");
+  snprintf(buf, 64, "Memory: %ld%s / %ld%s", 
+      mem_used, mem_used_type, mem_total, mem_total_type);
   return buf;
 }
