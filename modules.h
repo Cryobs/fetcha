@@ -13,5 +13,6 @@ char *get_os(void);
 char *get_host(void);
 char *get_kernel(void);
 char *get_uptime(void);
+char *get_memory(void);
 
 #endif

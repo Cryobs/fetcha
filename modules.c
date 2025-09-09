@@ -184,3 +184,47 @@ get_uptime(void)
 
   return format_uptime(days, hours, mins); 
 }
+
+
+char *
+get_memory(void) {
+  char *buf = malloc(64);
+  FILE *f = fopen("/proc/meminfo", "r");
+  if (!f) {
+    return NULL;
+  }
+
+  long mem_total = 0;
+  long mem_free = 0;
+  long buffers = 0;
+  long cached = 0;
+
+  char key[32];
+  long value;
+  char unit[16];
+
+  while(fscanf(f, "%31s %ld %15s", key, &value, unit) == 3) {
+    if (strcmp(key, "MemTotal:") == 0) {
+      mem_total = value;
+    } else if (strcmp(key, "MemFree:") == 0) {
+      mem_free = value;
+    } else if (strcmp(key, "Buffers:") == 0) {
+      buffers = value;
+    } else if (strcmp(key, "Cached:") == 0) {
+      cached = value;
+    }
+  }
+  fclose(f);
+
+  long mem_used = mem_total - mem_free - buffers - cached;
+
+  if (mem_total >= 1024) {
+    mem_total /= 1024;
+  }
+  if (mem_used >= 1024) {
+    mem_used /= 1024;
+  }
+
+  snprintf(buf, 64, "Memory: %ld%s / %ld%s", mem_used, mem_used >= 1024 ? "MiB" : "KiB", mem_total, mem_total >= 1024 ? "MiB" : "KiB");
+  return buf;
+}

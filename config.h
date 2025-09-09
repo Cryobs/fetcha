@@ -43,6 +43,7 @@ static info_item config_items[] = {
   { "HOST",   get_host },
   { "Kernel", get_kernel },
   { "Uptime", get_uptime },
+  { "Memory", get_memory },
 
 };
 
