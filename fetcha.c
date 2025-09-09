@@ -189,12 +189,12 @@ print_header()
  *  boundary  length
  */
 int
-print_boundary(int len)
+print_boundary(const char *c, int len)
 {
   printf("\x1b[%dm", colors[5]);
   for(int i = 0; i < len; i++) 
   {
-    printf("%s", boundary_char);
+    printf("%s", c);
   }
   printf("\x1b[0m"); /* reset color */
 
@@ -329,7 +329,8 @@ print_fetch(struct ascii *res)
   char  cur_color = '7';
   int   cur_info = 0;
   int   header_len = 0;
-  while(*p || (size_t)cur_info < config_items_len) {
+  while(*p || (size_t)cur_info < config_items_len + 
+        ((color_palette_show == 1) ? 3 : 0) ) {
     if (*p) {
       /*  check color  */
       if(*p == '$' && isdigit(*(p + 1))){
@@ -365,8 +366,36 @@ print_fetch(struct ascii *res)
       } 
       goto print_fetch_end;
     } else if (header_len > 0) {
-      print_boundary(header_len);  
+      print_boundary(boundary_char, header_len);  
       header_len = -1;
+      goto print_fetch_end;
+    }
+
+    /* print boundary for palette */
+    if ((size_t)cur_info == config_items_len 
+        && color_palette_show) {
+      print_boundary(" ", 1);
+      cur_info++;
+      goto print_fetch_end;
+    }
+
+    /* print normal palette */
+    if ((size_t)cur_info == config_items_len + 1 
+        && color_palette_show) {
+      for (int i = 0; i < 8; i++) {
+        printf("\x1b[4%dm   ", i);
+      }
+      cur_info++;
+      goto print_fetch_end;
+    }
+    
+    /* print bright palette */
+    if ((size_t)cur_info == config_items_len + 2 
+        && color_palette_show) {
+      for (int i = 0; i < 8; i++) {
+        printf("\x1b[10%dm   ", i);
+      }
+      cur_info++;
       goto print_fetch_end;
     }
 
@@ -387,6 +416,7 @@ print_fetch(struct ascii *res)
     /* chill I know what I'm doing */
     print_fetch_end:
       curw = 0;
+      printf("\x1b[0m"); /*  reset color */
       printf("\n");
       printf("\x1b[%dm",  colors[cur_color - '0']);
   }

@@ -2,11 +2,12 @@
 #include <stdio.h>
 
 
-static const char *ascii_dir     = "arts/ascii.txt"; 
-static const int ascii_pad       = 10; /* padding ascii/info */
-static const int info_align      = 1; /* align info by separator */
-static const int header_show     = 1; /* if 0 doot print header */
-static const char *info_sep      = ": ";
+static const char *ascii_dir          = "arts/ascii.txt"; 
+static const int ascii_pad            = 10; /* padding ascii/info */
+static const int info_align           = 1; /* align info by separator */
+static const int header_show          = 1; /* if 0 doot print header */
+static const int color_palette_show   = 1;
+static const char *info_sep           = ": ";
 /* 
  * colors ANSI 
  * NAME  : Normal Light
@@ -49,7 +50,7 @@ const size_t config_items_len = sizeof config_items / sizeof config_items[0];
 
 
 static const char *ascii_art  =
-"                   $2-` \n"
+"                   $1-` \n"
 "                  .o+`\n"
 "                 `ooo/\n"
 "                `+oooo:\n"
