@@ -2,4 +2,4 @@
 *.out
 
 bin/*
-
+config.h

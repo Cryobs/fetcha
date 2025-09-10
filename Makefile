@@ -13,6 +13,9 @@ DESTDIR =
 
 .PHONY: all clean install uninstall
 
+config.h:
+	cp config.def.h config.h
+
 all: $(BIN)
 
 $(BIN): $(OBJS)
