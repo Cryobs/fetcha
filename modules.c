@@ -233,3 +233,83 @@ get_memory(void) {
       mem_used, mem_used_type, mem_total, mem_total_type);
   return buf;
 }
+
+
+
+char *
+get_cpus(void) {
+  FILE *f = fopen("/proc/cpuinfo", "r");
+  if (!f) return NULL;
+
+  typedef struct {
+    char model[128];
+    int cores;
+    int first_logical;
+  } cpu_info;
+
+  cpu_info cpus[32] = {0};
+  int cpu_count = 0;
+
+  char line[256];
+  int logical_index = 0;
+  int current_physical = -1;
+
+  while (fgets(line, sizeof(line), f)) {
+    if (strncmp(line, "processor", 9) == 0) {
+      logical_index++;
+    } else if (strncmp(line, "physical id", 11) == 0) {
+      char *p = strchr(line,  ':');
+      if (p) current_physical = atoi(p + 1);
+      if (current_physical + 1 > cpu_count) cpu_count = current_physical + 1;
+    } else if (strncmp(line, "model name", 10) == 0 && current_physical >= 0)  {  
+      char *p = strchr(line, ':');
+      if (!p) {
+        continue;
+      }
+
+      p++;
+      while(*p == ' ' || *p == '\t') p++;
+      char *newline = strchr(p, '\n');
+      if (newline) *newline = '\0';
+      if (cpus[current_physical].cores == 0) {
+        char *cpu_at = strstr(p, " CPU @");
+        if (cpu_at) *cpu_at = '\0';
+        strncpy(cpus[current_physical].model, p, 
+            sizeof(cpus[current_physical].model)-1);
+        cpus[current_physical].first_logical = logical_index;
+      }
+      cpus[current_physical].cores++;
+    }
+  }
+  
+  fclose(f);
+  
+  char *buffer = malloc(4096);
+  if (!buffer) return NULL;
+  buffer[0] =  '\0';
+
+  for (int i = 0; i < cpu_count; i++) {
+    if (cpus[i].cores == 0) continue;
+
+    /* read max freq for first cpu thread */
+    char path[128];
+    snprintf(path, sizeof(path), 
+        "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", 
+        cpus[i].first_logical);
+    unsigned long max_khz = 0;
+    FILE *freq_file = fopen(path, "r");
+    if (freq_file) {
+      fscanf(freq_file, "%lu", &max_khz);
+      fclose(freq_file);
+    }
+    double max_ghz = max_khz / 1000.0 / 1000.0;
+
+    if (i < 0) strcat(buffer, "\n");
+    char tmp[256];
+    snprintf(tmp, sizeof(tmp), "%s (%d) @ %.2f GHz", 
+        cpus[i].model, cpus[i].cores + 1, max_ghz);
+    strcat(buffer, tmp);
+  }
+
+  return buffer;
+}
