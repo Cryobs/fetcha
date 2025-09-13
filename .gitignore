@@ -1,5 +1,6 @@
 *.o
 *.out
+*.d
 
 bin/*
 config.h

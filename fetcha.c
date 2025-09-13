@@ -65,6 +65,34 @@ typedef struct
 
 } header;
 
+
+typedef struct
+{
+  char *label;
+  char *value;
+
+} rendered_info;
+
+typedef struct
+{
+  rendered_info *entries;
+  size_t count;
+
+} info_list;
+
+void 
+free_info_list(info_list *infos) {
+  if (!infos) return;
+
+  for (size_t i = 0; i < infos->count; i++) {
+    free(infos->entries[i].label);
+    free(infos->entries[i].value);
+  }
+
+  free(infos->entries);
+  infos->count = 0;
+}
+
 /*
  * color to ansi code
  * function that takes color [0-15] and convert it to:
@@ -87,24 +115,77 @@ c_to_ansi(const char *color, char *out, size_t out_size)
 
   snprintf(out, out_size, "%d", ansi_code);
 }
+
+
+
 /*
- * function that prints information by template
- * label: value
- * label with color 1
+ * function that:
+ * 1. if (align_info) add padding to label
+ * 2. return info_list, with malloc!
  */
-void 
-print_info(info_item *item, int maxlen)
+info_list
+render_info(info_item infos[], size_t info_size)
 {
-  char *value;
-  value = item->func();
-  if (!value) value = "(null)";
-  if (info_align == 1) {
-    printf("\x1b[%dm%-*s\x1b[0m%s%s", 
-        colors[1], maxlen, item->label, info_sep, value); 
-    return;
+  info_list res = {NULL, 0};
+  size_t maxlen = 0;
+
+  if (info_align) {
+    for(size_t i = 0; i < info_size; i++) {
+      size_t len = strlen(infos[i].label);
+      if (len > maxlen) {
+        maxlen = len;
+      }
+    }
   }
-  printf("\x1b[%dm%s\x1b[0m%s%s", colors[1], item->label, info_sep, value); 
-  free(value);
+
+  for (size_t i = 0; i < info_size; i++) {
+    char *value = infos[i].func();
+    if (!value) value = "(null)";
+
+    /* count strings */
+    int split_count = 0;
+    {
+      char *tmp = strdup(value);
+      char  *p = strtok(tmp, "\n");
+      while (p) {
+        split_count++;
+        p = strtok(NULL, "\n");
+      }
+      free(tmp);
+    }
+    
+    /* split strings by \n */
+    char *line = strtok(value, "\n");
+    int number = 1;
+    while (line) {
+      res.entries = realloc(res.entries, 
+                            sizeof(rendered_info) * (res.count + 1));
+      
+      char tmp_label[128];
+      if (split_count > 1 && numerate_same) {
+        snprintf(tmp_label, sizeof(tmp_label), "%s%d", infos[i].label, number);
+      } else {
+        snprintf(tmp_label, sizeof(tmp_label), "%s", infos[i].label);
+      }
+
+
+      if (info_align) {
+        char padded[128];
+        snprintf(padded, sizeof(padded), "%-*s", (int)maxlen, tmp_label);
+        res.entries[res.count].label = strdup(padded);
+      } else {
+        res.entries[res.count].label = strdup(tmp_label);
+      }
+
+      res.entries[res.count].value = strdup(line);
+      res.count++;
+
+      line = strtok(NULL, "\n");
+      number++;
+    }
+    free(value);
+  }
+  return res; 
 }
 
 
@@ -176,7 +257,7 @@ print_header()
 
   printf("\x1b[0m"); /* reset color */
   printf("\x1b[%dm%s", colors[1], name);
-  printf("\x1b[%dm%s", colors[5], header_sep);
+  printf("\x1b[%dm%s", colors[7], header_sep);
   printf("\x1b[%dm%s", colors[2], hostname);
 
 
@@ -191,7 +272,7 @@ print_header()
 int
 print_boundary(const char *c, int len)
 {
-  printf("\x1b[%dm", colors[5]);
+  printf("\x1b[%dm", colors[8]);
   for(int i = 0; i < len; i++) 
   {
     printf("%s", c);
@@ -324,12 +405,16 @@ get_ascii()
 int
 print_fetch(struct ascii *res)
 {
-  char *p = res->art;
-  int   curw = 0;
-  char  cur_color = '7';
-  int   cur_info = 0;
+  char          *p = res->art;
+  int         curw = 0;
+  char   cur_color = '7';
+  int     cur_info = 0;
   int   header_len = 0;
-  while(*p || (size_t)cur_info < config_items_len + 
+
+
+  info_list  infos = render_info(config_items, config_items_len);
+ 
+  while(*p || (size_t)cur_info < infos.count + 
         ((color_palette_show == 1) ? 3 : 0) ) {
     if (*p) {
       /*  check color  */
@@ -372,7 +457,7 @@ print_fetch(struct ascii *res)
     }
 
     /* print boundary for palette */
-    if ((size_t)cur_info == config_items_len 
+    if ((size_t)cur_info == infos.count
         && color_palette_show) {
       print_boundary(" ", 1);
       cur_info++;
@@ -380,7 +465,7 @@ print_fetch(struct ascii *res)
     }
 
     /* print normal palette */
-    if ((size_t)cur_info == config_items_len + 1 
+    if ((size_t)cur_info == infos.count + 1 
         && color_palette_show) {
       for (int i = 0; i < 8; i++) {
         printf("\x1b[4%dm   ", i);
@@ -390,7 +475,7 @@ print_fetch(struct ascii *res)
     }
     
     /* print bright palette */
-    if ((size_t)cur_info == config_items_len + 2 
+    if ((size_t)cur_info == infos.count + 2 
         && color_palette_show) {
       for (int i = 0; i < 8; i++) {
         printf("\x1b[10%dm   ", i);
@@ -401,16 +486,13 @@ print_fetch(struct ascii *res)
 
 
     /*  print info */
-    
-    printf("\x1b[0m"); /*  reset color */
+    if ((size_t)cur_info < infos.count) {  
+      printf("\x1b[0m"); /*  reset color */
 
-    if ((size_t)cur_info < config_items_len) {
-      int maxlen = strlen(config_items[0].label);
-      for (int i = 1; (size_t)i < config_items_len; i++) {
-        if (strlen(config_items[i].label) > (size_t)maxlen) 
-          maxlen = strlen(config_items[i].label);
-      }
-      print_info(&config_items[cur_info++], maxlen); 
+      printf("\x1b[%dm%s", colors[1], infos.entries[cur_info].label);
+      printf("\x1b[%dm%s", colors[6], info_sep);
+      printf("\x1b[%dm%s", colors[5], infos.entries[cur_info].value);
+      cur_info++;
     }
 
     /* chill I know what I'm doing */
@@ -421,11 +503,13 @@ print_fetch(struct ascii *res)
       printf("\x1b[%dm",  colors[cur_color - '0']);
   }
   printf("\x1b[0m"); /*  reset color */
+
+  free_info_list(&infos);
   return 0;
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
   struct ascii art = get_ascii();
 

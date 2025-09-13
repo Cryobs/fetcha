@@ -9,6 +9,8 @@ typedef struct {
   info_func_t func;
 } info_item;
 
+
+
 char *get_os(void);
 char *get_host(void);
 char *get_kernel(void);

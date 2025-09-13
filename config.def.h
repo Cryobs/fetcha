@@ -2,15 +2,16 @@
 #include <stdio.h>
 
 
-static const char *ascii_dir          = "arts/ascii.txt"; 
 static const int ascii_pad            = 10; /* padding ascii/info */
 static const int info_align           = 1; /* align info by separator */
 static const int header_show          = 1; /* if 0 doot print header */
 static const int color_palette_show   = 1;
 static const char *info_sep           = ": ";
+static const int numerate_same        = 1;
+
 /* 
  * colors ANSI 
- * NAME  : Normal Light
+ * NAME    Normal Light
  * Black : 30     (90)
  * Red   : 31     (91)
  * Green : 32     (92)
@@ -19,7 +20,17 @@ static const char *info_sep           = ": ";
  * Purple: 35     (95)
  * Aqua  : 36     (96)
  * White : 37     (97)
+ *
+ * colorpallete:
+ * [0-4] - secondary colors
+ * [5-9] - text colors:
+ *   5 - info text
+ *   6 - info separator
+ *   7 - header separator
+ *   8 - boundary
+ *   9 - ?
  */
+
 static const int colors[10]      = {30, 31, 32, 33, 34, 35, 36, 37, 90, 91};
 
 /* 

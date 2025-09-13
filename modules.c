@@ -229,7 +229,7 @@ get_memory(void) {
     mem_used_type = "MiB";
   }
 
-  snprintf(buf, 64, "Memory: %ld%s / %ld%s", 
+  snprintf(buf, 64, "%ld%s / %ld%s", 
       mem_used, mem_used_type, mem_total, mem_total_type);
   return buf;
 }
