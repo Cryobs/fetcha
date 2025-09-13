@@ -56,6 +56,7 @@ static info_item config_items[] = {
   { "Uptime", get_uptime },
   { "Memory", get_memory },
   { "CPU",    get_cpus },
+  { "GPU",    get_gpus },
 
 };
 

@@ -304,12 +304,72 @@ get_cpus(void) {
     }
     double max_ghz = max_khz / 1000.0 / 1000.0;
 
-    if (i < 0) strcat(buffer, "\n");
     char tmp[256];
     snprintf(tmp, sizeof(tmp), "%s (%d) @ %.2f GHz", 
         cpus[i].model, cpus[i].cores + 1, max_ghz);
+
+    if(buffer[0] != '\0')  strcat(buffer, "\n");
     strcat(buffer, tmp);
   }
 
+  return buffer;
+}
+
+
+char *
+get_gpus(void)
+{
+  FILE *f = popen("lspci | grep -i VGA", "r");
+  typedef struct {
+    char brand[64];
+    char model[128];
+  } gpu_info;
+
+  gpu_info gpus[64] = {0};
+  char line[256];
+  int gpu_num = 0;
+
+  if (!f) return NULL;
+
+  char *buffer = malloc(4096);
+  if (!buffer) return NULL;
+  buffer[0] = '\0';
+
+  while (fgets(line, sizeof(line),  f)) {
+    /* search for a brand */
+    char *brand = strstr(line, "VGA compatible controller: ");
+    if (!brand) continue;
+    brand += strlen("VGA compatible controller: ");
+
+    /* search brand type */
+    if (strstr(brand, "NVIDIA")) {
+      strcpy(gpus[gpu_num].brand, "NVIDIA");
+    } else if (strstr(brand, "Intel")) {
+      strcpy(gpus[gpu_num].brand, "Intel");
+    } else if (strstr(brand, "AMD") || strstr(brand, "ATI")) {
+      strcpy(gpus[gpu_num].brand, "AMD");
+    } else { 
+      strcpy(brand, "Unknown");
+    }
+
+    char *model = strchr(brand, '[');
+    char *model_end = strchr(brand, ']');
+    if (model && model_end && model_end > model) {
+      int len = model_end - model - 1;
+      if (len > 127) len = 127;
+      strncpy(gpus[gpu_num].model, model + 1, len);
+      model[len] =  '\0';
+    } else {
+      strncpy(gpus[gpu_num].model, brand, sizeof(gpus[0].model) - 1);
+    }
+
+    char tmp[256];
+    snprintf(tmp, sizeof(tmp), "%s %s\n", 
+        gpus[gpu_num].brand, gpus[gpu_num].model);
+    strcat(buffer, tmp);
+    gpu_num++;
+  }
+
+  pclose(f);
   return buffer;
 }
