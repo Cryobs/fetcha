@@ -18,6 +18,7 @@ char *get_uptime(void);
 char *get_memory(void);
 char *get_cpus(void);
 char *get_gpus(void);
+char *get_wm(void);
 
 
 #endif

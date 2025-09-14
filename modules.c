@@ -2,6 +2,8 @@
 #include <string.h>
 #include <sys/utsname.h>
 #include <stdlib.h>
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
 
 /* void function placeholder */
 typedef char *(*info_func_t)(void);
@@ -373,3 +375,52 @@ get_gpus(void)
   pclose(f);
   return buffer;
 }
+
+
+
+
+char *
+get_wm(void)
+{
+  Display *dpy = XOpenDisplay(NULL);
+  if (!dpy) {
+    return NULL;
+  }
+
+  Atom wm_check = XInternAtom(dpy, "_NET_SUPPORTING_WM_CHECK", True);
+  Atom wm_name = XInternAtom(dpy, "_NET_WM_NAME", True);
+  if (wm_check == None || wm_name == None) {
+    return NULL;
+  }
+
+  Window root = DefaultRootWindow(dpy);
+  Atom actual_type;
+  int actual_format;
+  unsigned long nitems, bytes_after;
+  unsigned char *prop = NULL;
+
+  /* get window that have "supporting WM check" property */
+  if (XGetWindowProperty(dpy, root, wm_check, 0, 1, False, XA_WINDOW, 
+                          &actual_type, &actual_format, &nitems, &bytes_after,
+                          &prop) != Success || !prop) {
+    return NULL;
+  }
+
+  Window wm_window = *(Window*)prop;
+  XFree(prop);
+
+  /* read WM name */
+  if (XGetWindowProperty(dpy, wm_window, wm_name, 0, (~0L), False,
+                       AnyPropertyType, &actual_type, &actual_format,
+                       &nitems, &bytes_after, &prop) != Success || !prop) {
+    return NULL;
+  }
+
+  char *name = strndup((char *)prop, nitems);
+  XFree(prop);
+
+  return name;
+}
+
+
+

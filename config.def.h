@@ -57,6 +57,7 @@ static info_item config_items[] = {
   { "Memory", get_memory },
   { "CPU",    get_cpus },
   { "GPU",    get_gpus },
+  { "WM",     get_wm },
 
 };
 
