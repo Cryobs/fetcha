@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <unistd.h>
 
 /* void function placeholder */
 typedef char *(*info_func_t)(void);
@@ -20,11 +21,13 @@ static char *
 read_file_trim(const char *path)
 {
   FILE *f = fopen(path, "r");
-  if (!f) return NULL;
+  if (!f) {
+    return strdup("unknown");
+  }
   char buf[256];
   if (!fgets(buf, sizeof buf, f)) {
     fclose(f);
-    return NULL;
+    return strdup("unknown");
   }
   /* trim newline */
   size_t n = strlen(buf);
@@ -61,7 +64,7 @@ get_os(void)
   /* uname for arch */
   struct utsname buf;
   if (uname(&buf) != 0) {
-    return NULL;
+    return strdup("unknown");
   }
 
 
@@ -86,7 +89,7 @@ get_host(void)
   if (!product && !version) {
     free(product);
     free(version);
-    return NULL;
+    return strdup("unknown");
   }
   if (!version) version = strdup("");
   size_t len = strlen(product ? product : "") + 1 + strlen(version) + 1 + 8;
@@ -94,7 +97,7 @@ get_host(void)
   if (!out) {
     free(product);
     free(version);
-    return NULL;
+    return strdup("unknown");
   }
   if(product && version[0]) 
     snprintf(out, len, "%s %s", product, version);
@@ -118,7 +121,7 @@ get_kernel(void)
 {
   struct utsname buf;
   if (uname(&buf) != 0) {
-    return NULL;
+    return strdup("unknown");
   }
   return strdup(buf.release);
 }
@@ -155,8 +158,9 @@ char *
 format_uptime(int days, int hours, int mins)
 {
   char *buf = malloc(128);
-  if (!buf)
-    return NULL;
+  if (!buf) {
+    return strdup("unknown");
+  }
   buf[0] = '\0';
   int first = 1;
   append_part(buf, 128, days, "day", "days", &first);
@@ -172,11 +176,13 @@ char *
 get_uptime(void)
 {
   FILE *f = fopen("/proc/uptime", "r");
-  if (!f) return NULL;
+  if (!f) {
+    return strdup("unknown");
+  }
   double seconds;
   if (fscanf(f, "%lf", &seconds) != 1) {
     fclose(f);
-    return NULL;
+    return strdup("unknown");
   }
   fclose(f);
 
@@ -193,7 +199,7 @@ get_memory(void) {
   char *buf = malloc(64);
   FILE *f = fopen("/proc/meminfo", "r");
   if (!f) {
-    return NULL;
+    return strdup("unknown");
   }
 
   long mem_total = 0;
@@ -241,7 +247,9 @@ get_memory(void) {
 char *
 get_cpus(void) {
   FILE *f = fopen("/proc/cpuinfo", "r");
-  if (!f) return NULL;
+  if (!f) {
+    return strdup("unknown");
+  }
 
   typedef struct {
     char model[128];
@@ -287,7 +295,10 @@ get_cpus(void) {
   fclose(f);
   
   char *buffer = malloc(4096);
-  if (!buffer) return NULL;
+  if (!buffer) {
+    return strdup("unknown");
+  }
+
   buffer[0] =  '\0';
 
   for (int i = 0; i < cpu_count; i++) {
@@ -331,7 +342,9 @@ get_gpus(void)
   char line[256];
   int gpu_num = 0;
 
-  if (!f) return NULL;
+  if (!f) {
+    return strdup("unknown");
+  }
 
   char *buffer = malloc(4096);
   if (!buffer) return NULL;
@@ -384,13 +397,13 @@ get_wm(void)
 {
   Display *dpy = XOpenDisplay(NULL);
   if (!dpy) {
-    return NULL;
+    return strdup("unknown");
   }
 
   Atom wm_check = XInternAtom(dpy, "_NET_SUPPORTING_WM_CHECK", True);
   Atom wm_name = XInternAtom(dpy, "_NET_WM_NAME", True);
   if (wm_check == None || wm_name == None) {
-    return NULL;
+    return strdup("unknown");
   }
 
   Window root = DefaultRootWindow(dpy);
@@ -403,7 +416,7 @@ get_wm(void)
   if (XGetWindowProperty(dpy, root, wm_check, 0, 1, False, XA_WINDOW, 
                           &actual_type, &actual_format, &nitems, &bytes_after,
                           &prop) != Success || !prop) {
-    return NULL;
+    return strdup("unknown");
   }
 
   Window wm_window = *(Window*)prop;
@@ -413,7 +426,7 @@ get_wm(void)
   if (XGetWindowProperty(dpy, wm_window, wm_name, 0, (~0L), False,
                        AnyPropertyType, &actual_type, &actual_format,
                        &nitems, &bytes_after, &prop) != Success || !prop) {
-    return NULL;
+    return strdup("unknown");
   }
 
   char *name = strndup((char *)prop, nitems);
@@ -427,7 +440,7 @@ get_shell(void)
 {
   char *shell = getenv("SHELL");
   if (!shell) {
-    return NULL;
+    return strdup("unknown");
   }
 
   char cmd[256];
@@ -459,5 +472,45 @@ get_shell(void)
   }
 
   return strdup(out);
+
+}
+
+pid_t
+get_parent_pid(pid_t pid)
+{
+  char path[64];
+  snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+
+  FILE *f = fopen(path, "r");
+  if (!f) {
+    return 0;
+  }
+
+  pid_t ppid = 0;
+  fscanf(f, "%*d %*s %*c %d", &ppid);
+  fclose(f);
+  return ppid;
+
+}
+
+char *
+get_terminal(void)
+{
+    char *term = getenv("TERMINAL");
+    if (term && *term) { 
+      return strdup(term);
+    }
+
+    term = getenv("TERM_PROGRAM");
+    if (term && *term) {
+      return strdup(term);
+    }
+
+    term = getenv("TERM");
+    if (term && *term) {
+      return strdup(term);
+    }
+
+    return strdup("unknown");
 
 }

@@ -50,15 +50,16 @@ static const char *header_sep    = "@";
  * Label, func
  */
 static info_item config_items[] = {
-  { "OS",     get_os },
-  { "HOST",   get_host },
-  { "Kernel", get_kernel },
-  { "Uptime", get_uptime },
-  { "Memory", get_memory },
-  { "CPU",    get_cpus },
-  { "GPU",    get_gpus },
-  { "WM",     get_wm },
-  { "Shell",  get_shell },
+  { "OS",       get_os },
+  { "HOST",     get_host },
+  { "Kernel",   get_kernel },
+  { "Uptime",   get_uptime },
+  { "Memory",   get_memory },
+  { "CPU",      get_cpus },
+  { "GPU",      get_gpus },
+  { "WM",       get_wm },
+  { "Shell",    get_shell },
+  { "Terminal", get_terminal },
 
 };
 
