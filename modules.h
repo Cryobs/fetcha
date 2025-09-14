@@ -19,6 +19,7 @@ char *get_memory(void);
 char *get_cpus(void);
 char *get_gpus(void);
 char *get_wm(void);
+char *get_shell(void);
 
 
 #endif

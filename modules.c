@@ -422,5 +422,42 @@ get_wm(void)
   return name;
 }
 
+char *
+get_shell(void)
+{
+  char *shell = getenv("SHELL");
+  if (!shell) {
+    return NULL;
+  }
 
+  char cmd[256];
+  snprintf(cmd, sizeof(cmd), "%s --version 2>/dev/null", shell);
 
+  FILE *f =  popen(cmd, "r");
+  if (!f) {
+    return strdup(shell);
+  }
+
+  char buf[256];
+  if (!fgets(buf, sizeof(buf), f)) {
+    pclose(f);
+    return strdup(shell);
+  }
+  pclose(f);
+
+  buf[strcspn(buf, "\n")] = 0; /* without \n */
+
+  /* parse: name version */
+  char *name = strtok(buf, " ,");
+  char *ver  = strtok(NULL, " ,");
+
+  char out[128];
+  if (name && ver) {
+    snprintf(out, sizeof(out), "%s %s", name, ver);
+  } else {
+    snprintf(out, sizeof(out), "%s", shell);
+  }
+
+  return strdup(out);
+
+}
