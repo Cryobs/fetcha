@@ -1,12 +1,52 @@
 .TH FETCHA 1 "15 September 2025"
 .
 .SH NAME
-fetcha \- neofetch-like program but faster and lighter
+fetcha \- neofetch-like program, but faster and lighter
 .
 .SH SYNOPSIS
-.I fetcha 
+.B fetcha 
 .
 .SH DESCRIPTION
 Fetcha is a CLI system information program written in C
-and with suckless projects.
-Fetcha displays ASCII image and minimal system info.
+following the suckless philosophy.
+It displays an ASCII image along with minimal system information.
+.
+.SH FILES
+.TP
+.I config.def.h
+Default configuration file (do not change it!).
+.TP
+.I config.h
+Configuration file, requires reconmpilation after modification.
+.TP
+.I docs/
+.br
+Documentation directory.
+.TP
+.I fetcha.c
+Main code file. Here implement most logic of the program.
+.TP
+.I modules.c
+Modules code file. Here implement basic modules. 
+You can write your own (see \fBfetcha-modules\fR(5)
+.TP
+.I modules.h
+Modules header file. Here defined all modules.
+.TP
+.I license.txt
+License file.
+.TP
+.I Makefile
+Build file used to compile and install fetcha.
+Supports targets for building, cleaning, and instalation.
+.
+.SH CUSTOMIZATION
+Fetcha can be customized by creating a custom \fIconfig.h\fR and recompiling 
+the source code. 
+You can also write your own modules in \fImodules.c\fR and define them
+in \fImodules.h\fR. 
+.PP
+NOTE: See \fBfetcha-modules\fR(5) for a module creation tutorial 
+and \fBfetcha-config\fR(5) for a configuration tutorial
+
+
