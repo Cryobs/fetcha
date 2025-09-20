@@ -1,0 +1,147 @@
+.TH CONFIG.H 5 "17 September 2025"
+.SH NAME
+config.h \- fetcha configuration file
+.br
+config.def.h \- default configuration file for fetcha
+.SH DESCRIPTION
+The \fIconfig.def.h\fR file contains the default settings for fetcha. 
+On startup:
+.IP \(bu 2
+if \fIconfig.h\fR does not exist, it is created by copying \fIconfig.def.h\fR;
+.IP \(bu 2
+if \fIconfig.h\fR exists, it is read directly.
+.SS NOTE
+\fB#include "modules.h"\fR \- required for using modules in configuration.
+.br
+\fB#include <stdio.h>\fR \- required for the \fBsize_t\fR type in \fBconfig_items_len\fR.
+.SH OPTIONS
+The configuration file is a \fBC\fR source file, so you can use all \fBC\fR features.
+Configuration variables are usually declared as \fBstatic const\fR.
+The value \fB1\fR means \fBTrue\fR, and \fB0\fR means \fBFalse\fR.
+Variables are aligned by the assignment operator \fB=\fR.
+.RS
+.IP "Example:"
+.RS
+.nf
+\fBstatic const int ascii_pad          = 10;
+static const int color_palette_show = 1;\fR
+.fi
+.RE
+.RE
+.TP
+.B ascii_pad
+Padding between ASCII art and information (in characters).
+.TP
+.B info_align (0/1)
+Align information by separator. 
+.RS
+.IP "Example:"
+.RS
+.nf
+OS    : Arch Linux x86_64
+Kernel: 6.15.4-arch2-1
+.fi
+.RE
+.RE
+.TP
+.B header_show (0/1)
+Show header or not.
+.RS
+.IP "Header format:"
+.RS
+.nf
+brace@archlinux
+===============
+.fi
+.RE
+.RE
+.TP
+.B color_palette_show (0/1)
+Show color palette with terminal colors below system information.
+.TP
+.B info_sep
+Separator between label and system info.
+.TP
+.B numerate_same (0/1)
+Enumerate fields of which there may be multiple instances.
+.RS
+.IP "Example (1):"
+.RS
+.nf
+GPU1 : Intel UHD Graphics
+GPU2 : NVIDIA GeForce GTX 1650 Mobile / Max-Q
+.fi
+.RE
+.RE
+.RS
+.IP "Example (0):"
+.RS
+.nf
+GPU  : Intel UHD Graphics
+GPU  : NVIDIA GeForce GTX 1650 Mobile / Max-Q
+.fi
+.RE
+.RE
+.TP
+.B colors[10]
+Array of 10 colors used by fetcha.
+.RS
+.IP "Default palette:"
+.RS
+.nf
+[0/2-4/9] \- secondary colors (for ASCII)
+1         \- label and username color
+5         \- info text
+6         \- info separator
+7         \- header separator
+8         \- boundary
+.fi
+.RE
+.RE
+.TP
+.B boundary_char
+String used as a boundary between header and info.
+.RS
+.IP "NOTE:"
+.RS
+boundary length = (username.len + header_sep.len + hostname.len) * boundary_char.len
+.RE
+.RE
+.TP
+.B header_sep
+Separator between username and hostname in the header.
+.TP
+.B config_items
+An array of \fBinfo_item\fR that defines which information is printed in the fetch.
+Each element consists of a label and a function that returns an allocated \fBchar *\fR.
+.PP
+.RS
+.nf
+{ <label>, <func> }
+.fi
+.RE
+.TP
+.B config_items_len
+Constant that stores the length of \fBconfig_items\fR. 
+Helps when developing modules.
+.TP
+.B ascii_art
+String printed before system information, usually ASCII art.
+
+.RS
+.IP NOTE:
+.RS
+This string supports colors.  
+Syntax: \fB$\fR followed by a color index from \fBcolors[]\fR (0\-9).
+.RE
+.RE
+.SH FILES
+.TP
+.I config.def.h
+File containing default configuration.
+.TP
+.I config.h
+User configuration file.
+.SH SEE ALSO
+.BR fetcha (1)
+
