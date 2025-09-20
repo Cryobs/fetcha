@@ -1,0 +1,19 @@
+.TH "FETCHA MODULE CREATION" 5 "20 September 2025"
+.SH NAME
+Module \- is function that return allocated \fBchar *\fR.
+.SH SYNOPSIS
+.B char *module_name(void);
+.SH DESCRIPTION
+Module is function, usually from \fImodules.c\fR, that return allocated string,
+\fBchar *\fR, that string used like \fBinfo\fR (without lable), 
+module must be declarated in \fImodules.h\fR.
+Module called in \fIconfig.h\fR, for variable \fBconfig_items\fR.
+.SH FILES
+.I modules.c
+\- \fBC\fR file that contains module functions.
+.br
+.I modules.h
+\- header file with module function declaration.
+.SH SEE ALSO
+.BR fetcha (1)
+.BR fetcha-config (5)
