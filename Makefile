@@ -1,7 +1,8 @@
 # Makefile for fetcha
 
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -MMD -lX11
+CFLAGS = -Wall -Wextra -O2 -MMD
+LDLIBS = -lX11
 SRCS = fetcha.c modules.c
 OBJDIR = bin/obj
 OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
@@ -20,7 +21,7 @@ all: $(BIN)
 
 $(BIN): $(OBJS)
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -o $@ $(OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(OBJDIR)
