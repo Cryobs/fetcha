@@ -1,6 +1,7 @@
 # fetcha - suckless-like system info fetch
 fetcha is an fast, small and easy configurated system info fetch.
-[fetcha image](docs/img/fetcha.jpg)
+
+![fetcha image](docs/img/fetcha.jpg)
 ## Requirements
 To insatll fetcha you need `git`.
 ## Installation
