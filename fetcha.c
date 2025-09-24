@@ -450,7 +450,7 @@ print_fetch(struct ascii *res)
         exit(EXIT_FAILURE);
       } 
       goto print_fetch_end;
-    } else if (header_len > 0) {
+    } else if (header_len > 0 && strlen(boundary_char) > 0) {
       print_boundary(boundary_char, header_len);  
       header_len = -1;
       goto print_fetch_end;
