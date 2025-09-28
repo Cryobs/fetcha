@@ -4,44 +4,38 @@
 VERSION = 1.0.0
 
 CC = cc
-CCFLAGS = -Wall -Wextra -O2 -MMD
-LDLIBS = -lX11
-SRCS = fetcha.c modules.c
-OBJDIR = bin/obj
-OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
-DEPS = $(OBJS:.o=.d)
-BIN = bin/fetcha
+CPPFLAGS = -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700L -DVERSION=\"${VERSION}\"
+CFLAGS = -std=c99 -pedantic -Wall -Wno-deprecated-declarations -Os -MMD ${CPPFLAGS}
+LDFLAGS = -lX11
+
+SRC = fetcha.c modules.c
+OBJ = ${SRC:.c=.o}
 
 PREFIX = /usr/local
 DESTDIR = 
 
 MANPREFIX = ${PREFIX}/share/man
 
-.PHONY: all clean install uninstall
+all: fetcha
+
+.c.o:
+	${CC} -c ${CFLAGS} $<
+
+${OBJ}: config.h
 
 config.h:
-	cp config.def.h config.h
+	cp config.def.h $@
 
-all: $(BIN)
-
-$(BIN): $(OBJS)
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
-
-$(OBJDIR)/%.o: %.c
-	@mkdir -p $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
--include $(DEPS)
+fetcha: ${OBJ}
+	${CC} -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
-	rm -rf $(OBJDIR) $(BIN)
-
+	rm -f fetcha ${OBJ}
 
 install: all
 	@echo installing executable file to ${DESTDIR}${PREFIX}/bin
 	@mkdir -p "$(DESTDIR)$(PREFIX)/bin"
-	@cp -f "$(BIN)" "$(DESTDIR)$(PREFIX)/bin/fetcha"
+	@cp -f fetcha "$(DESTDIR)$(PREFIX)/bin/fetcha"
 	@chmod 755 "$(DESTDIR)$(PREFIX)/bin/fetcha"
 	@echo installing manual page to ${DESTDIR}${MANPREFIX}
 	# docs/fetcha.1
@@ -68,3 +62,5 @@ uninstall:
 	@for file in docs/*.5; do \
 		rm -f "${DESTDIR}${MANPREFIX}/man5/`basename $$file`"; \
 	done
+
+.PHONY: all clean install uninstall
