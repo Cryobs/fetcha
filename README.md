@@ -3,7 +3,7 @@ fetcha is an fast, small and easy configurated system info fetch.
 
 ![fetcha image](docs/img/fetcha.jpg)
 ## Requirements
-To insatll fetcha you need `git`.
+To install fetcha you need `git`.
 ## Installation
 1. clone the repository.
 ```
