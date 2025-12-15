@@ -59,6 +59,7 @@ static info_item config_items[] = {
   { "GPU",      get_gpus },
   { "WM",       get_wm },
   { "Shell",    get_shell },
+  { "Editor",   get_editor },
   { "Terminal", get_terminal },
 
 };

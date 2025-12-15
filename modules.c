@@ -512,5 +512,15 @@ get_terminal(void)
     }
 
     return strdup("unknown");
+}
 
+char *
+get_editor(void)
+{
+  char *editor = getenv("EDITOR");
+  if (editor && *editor) {
+    return strdup(editor);
+  }
+
+  return strdup("unknown");
 }
