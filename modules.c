@@ -150,47 +150,65 @@ append_part(char *buf, size_t buf_size, int val,
 /*
  * function that formats time:
  * - with plural/singular format
- * - if days/hours/mins == 0: dont add
+ * - if years/months/weeks/days/hours/mins == 0: dont add
  *
  * return malloc string
  */
 char *
-format_uptime(int days, int hours, int mins)
+format_uptime(int years, int months, int weeks, int days, int hours, int mins)
 {
-  char *buf = malloc(128);
-  if (!buf) {
-    return strdup("unknown");
-  }
-  buf[0] = '\0';
-  int first = 1;
-  append_part(buf, 128, days, "day", "days", &first);
-  append_part(buf, 128, hours, "hour", "hours", &first);
-  append_part(buf, 128, mins, "min", "mins", &first);
-  if (first)
-    snprintf(buf, 128, "0 mins");
-  return buf;
+	char *buf = malloc(128);
+	int first = 1;
+
+	if (!buf)
+		return strdup("unknown");
+
+	buf[0] = '\0';
+	append_part(buf, 128, years, "year", "years", &first);
+	append_part(buf, 128, months, "month", "months", &first);
+	append_part(buf, 128, weeks, "week", "weeks", &first);
+	append_part(buf, 128, days, "day", "days", &first);
+	append_part(buf, 128, hours, "hour", "hours", &first);
+	append_part(buf, 128, mins, "min", "mins", &first);
+
+	if (first)
+		snprintf(buf, 128, "0 mins");
+
+	return buf;
 }
 
 
 char *
 get_uptime(void)
 {
-  FILE *f = fopen("/proc/uptime", "r");
-  if (!f) {
-    return strdup("unknown");
-  }
-  double seconds;
-  if (fscanf(f, "%lf", &seconds) != 1) {
-    fclose(f);
-    return strdup("unknown");
-  }
-  fclose(f);
+	FILE *f = fopen("/proc/uptime", "r");
+	double seconds;
+	long long total_seconds;
+	long long total_days;
+	int years, months, weeks, days, hours, mins;
 
-  int mins = (int)(seconds / 60) % 60;
-  int hours = (int)(seconds / 3600) % 24;
-  int days = (int) hours / 24;
+	if (!f)
+		return strdup("unknown");
 
-  return format_uptime(days, hours, mins); 
+	if (fscanf(f, "%lf", &seconds) != 1) {
+		fclose(f);
+		return strdup("unknown");
+	}
+	fclose(f);
+
+	total_seconds = (long long)seconds;
+	mins = (int)((total_seconds / 60) % 60);
+	hours = (int)((total_seconds / 3600) % 24);
+	total_days = total_seconds / 86400;
+
+	years = (int)(total_days / 365);
+	total_days %= 365;
+	months = (int)(total_days / 30);
+	total_days %= 30;
+	weeks = (int)(total_days / 7);
+	days = (int)(total_days % 7);
+
+	return format_uptime(years, months, weeks, days, hours, mins);
 }
 
 
