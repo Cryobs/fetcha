@@ -70,7 +70,7 @@ get_os(void)
 
   size_t len = strlen(osname) + strlen(buf.machine) + 2;
   char *out = malloc(len);
-  if (!*out) return NULL;
+  if (!out) return NULL;
 
   snprintf(out, len, "%s %s", osname, buf.machine);
 
