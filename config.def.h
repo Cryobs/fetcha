@@ -2,12 +2,13 @@
 #include <stdio.h>
 
 
-static const int ascii_pad            = 10; /* padding ascii/info */
-static const int info_align           = 1; /* align info by separator */
-static const int header_show          = 1; /* if 0 doot print header */
-static const int color_palette_show   = 1;
-static const char *info_sep           = ": ";
-static const int numerate_same        = 1;
+static const int  ascii_pad            = 10; /* padding ascii/info */
+static const bool info_align           = true; /* align info by separator */
+static const bool header_show          = true; /* if 0 doot print header */
+static const bool color_palette_show   = true;
+static const char *info_sep            = ": ";
+static const bool numerate_same        = true;
+static const bool line_break           = true;
 
 /* 
  * colors ANSI 
@@ -28,22 +29,25 @@ static const int numerate_same        = 1;
  *   6 - info separator
  *   7 - header separator
  *   8 - boundary
- *   9 - ?
+ *   9 - line breaker
  */
 
 static const int colors[10]      = {30, 31, 32, 33, 34, 35, 36, 37, 90, 91};
 
 /* 
  * character header/info
- * if 1 char: boundary len == header len
- * if 2 char: boundary len == 2 * header len 
  */
-static const char *boundary_char = "=";
+static const char boundary_char = '=';
 
 /* 
  * separator for header info 
  */
 static const char *header_sep    = "@";
+
+/* 
+ * line breaker character
+ */
+static const char line_break_char = '>';
 
 /*
  * information
