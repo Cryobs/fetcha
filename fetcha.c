@@ -31,8 +31,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <pwd.h>
 #include <sys/utsname.h>
+#include <stdbool.h>
 
 #include "modules.h"
 #include "config.h"
@@ -91,6 +93,27 @@ free_info_list(info_list *infos) {
 
   free(infos->entries);
   infos->count = 0;
+}
+
+/*
+ * prints string with line break (if setted up "line_break")
+ * return 0: if no line_break
+ * return 1: if line_break
+ */
+int
+puts_limited(const char *s, int term_width, int *curw, bool show_break)
+{
+  while (*s) {
+    if (term_width > 0 && *curw >= term_width - 2 && line_break) {
+      if (show_break) 
+        printf(" \x1b[%dm%c", colors[9], line_break_char);
+      *curw = term_width;
+      return 1;
+    }
+    putchar(*s++);
+    (*curw)++;
+  }
+  return 0;
 }
 
 /*
@@ -246,7 +269,7 @@ trim(char *str)
  *  < 0: error
  */
 int
-print_header()
+print_header(int term_width, int *curw)
 {
   char *name = getenv("USER");
   char hostname[256];
@@ -256,9 +279,14 @@ print_header()
   } 
 
   printf("\x1b[0m"); /* reset color */
-  printf("\x1b[%dm%s", colors[1], name);
-  printf("\x1b[%dm%s", colors[7], header_sep);
-  printf("\x1b[%dm%s", colors[2], hostname);
+  printf("\x1b[%dm", colors[1]);
+  if(!puts_limited(name, term_width, curw, true)) {
+    printf("\x1b[%dm", colors[7]);
+    if(!puts_limited(header_sep, term_width, curw, true)) {
+      printf("\x1b[%dm", colors[2]);
+      puts_limited(hostname, term_width, curw, true);
+    }
+  }
 
 
   return strlen(name) + strlen(header_sep) + strlen(hostname);
@@ -266,20 +294,18 @@ print_header()
 
 /*
  * function that prints boundary
- * returns:
- *  boundary  length
  */
-int
-print_boundary(const char *c, int len)
+void
+print_boundary(const char c, int len, int term_width, int *curw)
 {
   printf("\x1b[%dm", colors[8]);
+  char s[len];
   for(int i = 0; i < len; i++) 
   {
-    printf("%s", c);
+    s[i] = c;
   }
+  puts_limited(s, term_width, curw, true);
   printf("\x1b[0m"); /* reset color */
-
-  return len * strlen(boundary_char);
 }
 
 /*
@@ -353,7 +379,7 @@ get_ascii_size(struct ascii *res)
   int curw = 0;
   int lines = 0;
   char *p = res->art;
-  if  (*p == '\0') {
+  if (*p == '\0') {
     res->width = res->height = 0;
     return;
   }
@@ -363,14 +389,16 @@ get_ascii_size(struct ascii *res)
       lines++;
       if (curw > maxw) maxw = curw;
       curw = 0;
+    } else if (*p == '$' && isdigit(*(p + 1))) {
+      p += 2;
+      continue;
     } else {
       curw++;
     }
     p++;
   }
 
-  /* if last char is not '\n' */
-  if (curw == 0 || (res->art[0] != '\0' && res->art[0] == '\n')) {
+  if (curw > 0) {
     lines++;
     if (curw > maxw) maxw = curw;
   }
@@ -378,6 +406,7 @@ get_ascii_size(struct ascii *res)
   res->width = maxw;
   res->height = lines;
 }
+
 
 
 /*
@@ -393,6 +422,7 @@ get_ascii()
   return res;
 }
 
+
 /*
  * function that print:
  * - ascii art with colors from config, with processing like:
@@ -402,30 +432,41 @@ get_ascii()
  * if return < 0:
  * - 
  */
+
 int
 print_fetch(struct ascii *res)
 {
-  char          *p = res->art;
-  int         curw = 0;
-  char   cur_color = '7';
-  int     cur_info = 0;
-  int   header_len = 0;
+  char        *p = res->art;
+  int       curw = 0;
+  char cur_color = '7';
+  int   cur_info = 0;
+  int header_len = 0;
+  int term_width = 0;
 
+  struct winsize ws;
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
+    term_width = ws.ws_col;
 
-  info_list  infos = render_info(config_items, config_items_len);
- 
-  while(*p || (size_t)cur_info < infos.count + 
-        ((color_palette_show == 1) ? 3 : 0) ) {
+  info_list infos = render_info(config_items, config_items_len);
+
+  while (*p || (size_t)cur_info < infos.count +
+        ((color_palette_show == 1) ? 3 : 0)) {
     if (*p) {
-      /*  check color  */
-      if(*p == '$' && isdigit(*(p + 1))){
+      /* check color */
+      if (*p == '$' && isdigit(*(p + 1))) {
         cur_color = *++p;
-        printf("\x1b[%dm",  colors[cur_color - '0']);
+        printf("\x1b[%dm", colors[cur_color - '0']);
         p++;
         continue;
       }
       /* print char */
-      if(*p != '\n'){
+      if (*p != '\n') {
+        if (term_width > 0 && curw >= term_width - 2 && line_break) {
+          printf(" \x1b[%dm%c", colors[9], line_break_char);
+          while (*p && *p != '\n') p++;
+          curw = res->width + ascii_pad;
+          continue;
+        }
         putchar(*p);
         p++;
         curw++;
@@ -436,73 +477,91 @@ print_fetch(struct ascii *res)
 
     /* add padding */
     if (res->width > 0) {
-      while(curw != res->width + ascii_pad) {
+      while (curw != res->width + ascii_pad) {
+        if (term_width > 0 && curw >= term_width) {
+          curw = res->width + ascii_pad;
+          break;
+        }
         putchar(' ');
         curw++;
       }
     }
 
+    /* skip info/header if no space */
+    if (term_width > 0 && curw >= term_width - 2) {
+      if (header_len == 0 && header_show != 0)
+        header_len = -1;
+      else if (header_len > 0)
+        header_len = -1;
+      else if ((size_t)cur_info < infos.count +
+               ((color_palette_show == 1) ? 3 : 0))
+        cur_info++;
+      goto print_fetch_end;
+    }
+
     /* print header */
-    if (header_len == 0 && header_show != 0){
-      header_len = print_header();
+    if (header_len == 0 && header_show != 0) {
+      header_len = print_header(term_width, &curw);
       if (header_len < 0) {
         fprintf(stderr, "Header Error: %d", header_len);
         exit(EXIT_FAILURE);
-      } 
+      }
       goto print_fetch_end;
-    } else if (header_len > 0 && strlen(boundary_char) > 0) {
-      print_boundary(boundary_char, header_len);  
+    } else if (header_len > 0) {
+      print_boundary(boundary_char, header_len, term_width, &curw);
       header_len = -1;
       goto print_fetch_end;
     }
 
     /* print boundary for palette */
-    if ((size_t)cur_info == infos.count
-        && color_palette_show) {
-      print_boundary(" ", 1);
+    if ((size_t)cur_info == infos.count && color_palette_show) {
       cur_info++;
       goto print_fetch_end;
     }
 
     /* print normal palette */
-    if ((size_t)cur_info == infos.count + 1 
-        && color_palette_show) {
+    if ((size_t)cur_info == infos.count + 1 && color_palette_show) {
       for (int i = 0; i < 8; i++) {
-        printf("\x1b[4%dm   ", i);
+        printf("\x1b[4%dm", i);
+        if (puts_limited("   ", term_width, &curw, false))
+          break;
       }
       cur_info++;
       goto print_fetch_end;
     }
-    
+
     /* print bright palette */
-    if ((size_t)cur_info == infos.count + 2 
-        && color_palette_show) {
+    if ((size_t)cur_info == infos.count + 2 && color_palette_show) {
       for (int i = 0; i < 8; i++) {
-        printf("\x1b[10%dm   ", i);
+        printf("\x1b[10%dm", i);
+        if (puts_limited("   ", term_width, &curw, false))
+          break;
       }
       cur_info++;
       goto print_fetch_end;
     }
 
-
-    /*  print info */
-    if ((size_t)cur_info < infos.count) {  
-      printf("\x1b[0m"); /*  reset color */
-
-      printf("\x1b[%dm%s", colors[1], infos.entries[cur_info].label);
-      printf("\x1b[%dm%s", colors[6], info_sep);
-      printf("\x1b[%dm%s", colors[5], infos.entries[cur_info].value);
+    /* print info */
+    if ((size_t)cur_info < infos.count) {
+      printf("\x1b[0m");
+      printf("\x1b[%dm", colors[1]);
+      if (!puts_limited(infos.entries[cur_info].label, term_width, &curw, true)) {
+        printf("\x1b[%dm", colors[6]);
+        if (!puts_limited(info_sep, term_width, &curw, true)) {
+          printf("\x1b[%dm", colors[5]);
+          puts_limited(infos.entries[cur_info].value, term_width, &curw, true);
+        }
+      }
       cur_info++;
     }
 
-    /* chill I know what I'm doing */
     print_fetch_end:
       curw = 0;
-      printf("\x1b[0m"); /*  reset color */
+      printf("\x1b[0m");
       printf("\n");
-      printf("\x1b[%dm",  colors[cur_color - '0']);
+      printf("\x1b[%dm", colors[cur_color - '0']);
   }
-  printf("\x1b[0m"); /*  reset color */
+  printf("\x1b[0m");
 
   free_info_list(&infos);
   return 0;
